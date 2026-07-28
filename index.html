@@ -1,40 +1,642 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-    <title>海平运动康复</title>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
+<title>酒店空瓶回收计算器</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+    background:#0a2215;color:#fff;min-height:100vh;overflow-x:hidden;
+    display:flex;flex-direction:column;align-items:center;
+  }
+  .page{width:100%;max-width:520px;padding:24px 20px;min-height:100vh;display:flex;flex-direction:column}
 
-    <!-- PWA Manifest -->
-    <link rel="manifest" href="/hpydkf-rehab/manifest.json" />
-    <meta name="theme-color" content="#378ADD" />
-    <meta name="mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-    <meta name="apple-mobile-web-app-title" content="海平康复" />
-    <link rel="apple-touch-icon" href="/hpydkf-rehab/icon-192.png" />
+  .top{text-align:center;margin-bottom:20px;animation:fadeIn 0.6s ease}
+  .top .logo-img{height:32px;margin-bottom:12px;opacity:0.9}
+  .top .question{font-size:24px;font-weight:800;line-height:1.4}
+  .top .question .green{color:#4caf50}
+  .top .sub{font-size:13px;opacity:0.6;margin-top:6px}
 
-    <!-- Favicon -->
-    <link rel="icon" type="image/svg+xml" href="/hpydkf-rehab/favicon.svg" />
-    <link rel="icon" type="image/png" sizes="192x192" href="/hpydkf-rehab/icon-192.png" />
-    <link rel="icon" type="image/png" sizes="512x512" href="/hpydkf-rehab/icon-512.png" />
-    <script type="module" crossorigin src="/hpydkf-rehab/assets/index-CGHelJFG.js"></script>
-    <link rel="stylesheet" crossorigin href="/hpydkf-rehab/assets/index-CSDV_BiL.css">
-  </head>
-  <body class="bg-gray-50">
-    <div id="app"></div>
+  /* 闭环图 */
+  .loop-section{
+    background:rgba(255,255,255,0.03);border-radius:18px;padding:16px 12px 12px;margin-bottom:18px;
+    border:1px solid rgba(255,255,255,0.06);animation:fadeIn 0.5s ease 0.15s both;
+    position:relative;overflow:hidden
+  }
+  .loop-section .loop-title{font-size:12px;color:rgba(76,175,80,0.8);text-align:center;margin-bottom:6px;font-weight:600}
+  .loop-svg-wrap{position:relative;width:100%;max-width:400px;margin:0 auto}
+  .loop-svg-wrap svg{width:100%;height:auto;display:block}
 
-    <!-- Service Worker 注册 -->
-    <script>
-      if ('serviceWorker' in navigator) {
-        window.addEventListener('load', function() {
-          navigator.serviceWorker.register('/sw.js').then(function(reg) {
-            console.log('SW registered:', reg.scope);
-          }).catch(function(err) {
-            console.log('SW registration failed:', err);
-          });
-        });
-      }
-    </script>
-  </body>
+  /* 瓶子→浴袍交互区 */
+  .transform-zone{
+    background:rgba(249,168,37,0.06);border:1px dashed rgba(249,168,37,0.25);border-radius:14px;
+    padding:14px 18px;margin-top:12px;text-align:center;cursor:pointer;
+    transition:all 0.3s;position:relative;overflow:hidden;
+    animation:slideUp 0.5s ease 0.2s both
+  }
+  .transform-zone:hover{background:rgba(249,168,37,0.1);border-color:rgba(249,168,37,0.4)}
+  .transform-zone .tz-label{font-size:12px;color:rgba(249,168,37,0.8);margin-bottom:8px;font-weight:600}
+  .transform-zone .tz-display{display:flex;align-items:center;justify-content:center;gap:10px;min-height:60px}
+  .transform-zone .tz-item{display:flex;flex-direction:column;align-items:center;gap:4px}
+  .transform-zone .tz-count{font-size:28px;font-weight:900;color:#f9a825;line-height:1}
+  .transform-zone .tz-icon-text{font-size:12px;color:rgba(255,255,255,0.6)}
+  .transform-zone .tz-arrow{font-size:24px;opacity:0.4}
+  .transform-zone .tz-equals{font-size:22px;font-weight:900;color:#4caf50}
+  .transform-zone .tz-hint{
+    font-size:11px;color:rgba(255,255,255,0.35);margin-top:8px;
+    transition:all 0.3s
+  }
+  .transform-zone.transformed{background:rgba(76,175,80,0.08);border-color:rgba(76,175,80,0.35)}
+  .transform-zone.transformed .tz-hint{color:rgba(76,175,80,0.7)}
+
+  /* 瓶子图标堆叠动画 */
+  .bottle-stack{display:flex;flex-wrap:wrap;justify-content:center;gap:2px;max-width:120px}
+  .bottle-mini{width:18px;height:36px;background:rgba(76,175,80,0.3);border-radius:4px 4px 2px 2px;
+    position:relative;transition:all 0.4s ease;font-size:10px;display:flex;align-items:center;justify-content:center}
+  .bottle-mini::before{content:'';position:absolute;top:-6px;left:3px;width:12px;height:8px;
+    background:rgba(76,175,80,0.3);border-radius:3px 3px 1px 1px}
+  .bottle-mini.transformed{
+    background:rgba(249,168,37,0.5);border-radius:8px 8px 3px 3px;
+    transform:scale(1.15)
+  }
+  .bottle-mini.transformed::before{background:rgba(249,168,37,0.5);width:14px;left:2px}
+
+  /* 浴袍出现动画 */
+  .robe-result{
+    display:flex;flex-direction:column;align-items:center;gap:4px;
+    animation:popIn 0.5s ease 0.3s both
+  }
+  .robe-result .robe-icon{font-size:42px;transition:transform 0.3s}
+  .robe-result .robe-count{font-size:28px;font-weight:900;color:#4caf50}
+  .robe-result .robe-text{font-size:11px;color:rgba(76,175,80,0.7)}
+
+  @keyframes popIn{0%{opacity:0;transform:scale(0.3)}60%{transform:scale(1.1)}100%{opacity:1;transform:scale(1)}}
+
+  .input-group{background:rgba(255,255,255,0.05);border-radius:18px;padding:22px;margin-bottom:16px;animation:slideUp 0.5s ease 0.3s both;backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,0.08)}
+  .input-group label{font-size:13px;color:rgba(255,255,255,0.7);display:block;margin-bottom:8px}
+  .input-row{display:flex;gap:10px;align-items:center}
+  .input-row input{
+    flex:1;background:rgba(0,0,0,0.3);border:2px solid rgba(255,255,255,0.1);border-radius:12px;
+    padding:14px 18px;font-size:20px;color:#fff;font-weight:600;text-align:center;
+    transition:border-color 0.3s;outline:none;font-family:inherit
+  }
+  .input-row input:focus{border-color:#4caf50;box-shadow:0 0 20px rgba(76,175,80,0.15)}
+  .input-row input::placeholder{color:rgba(255,255,255,0.2);font-size:14px}
+  .input-row .unit{font-size:14px;opacity:0.6;white-space:nowrap}
+  .preset-btns{display:flex;gap:6px;margin-top:10px;flex-wrap:wrap}
+  .preset-btn{background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:16px;padding:5px 14px;font-size:12px;color:rgba(255,255,255,0.7);cursor:pointer;transition:all 0.2s;font-family:inherit}
+  .preset-btn:hover{background:rgba(76,175,80,0.15);border-color:rgba(76,175,80,0.3);color:#4caf50}
+
+  .occ-section{margin-top:14px;padding-top:14px;border-top:1px solid rgba(255,255,255,0.06)}
+  .occ-section label{font-size:12px;color:rgba(255,255,255,0.55);display:block;margin-bottom:8px}
+  .occ-row{display:flex;gap:8px;align-items:center}
+  .occ-row input{
+    width:80px;background:rgba(0,0,0,0.3);border:2px solid rgba(255,255,255,0.1);border-radius:10px;
+    padding:8px 12px;font-size:16px;color:#f9a825;font-weight:600;text-align:center;
+    transition:border-color 0.3s;outline:none;font-family:inherit
+  }
+  .occ-row input:focus{border-color:#f9a825;box-shadow:0 0 15px rgba(249,168,37,0.15)}
+  .occ-row .unit{font-size:13px;opacity:0.5}
+  .occ-ref-group{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+  .occ-ref-btn{
+    background:rgba(249,168,37,0.07);border:1px solid rgba(249,168,37,0.18);border-radius:14px;
+    padding:5px 12px;font-size:11px;color:rgba(249,168,37,0.8);cursor:pointer;transition:all 0.2s;font-family:inherit
+  }
+  .occ-ref-btn:hover,.occ-ref-btn.active{background:rgba(249,168,37,0.18);border-color:rgba(249,168,37,0.4);color:#f9a825}
+  .occ-ref-hint{font-size:10px;color:rgba(255,255,255,0.3);margin-top:6px}
+
+  .formula-section{background:rgba(249,168,37,0.08);border:1px solid rgba(249,168,37,0.2);border-radius:14px;padding:16px;margin-bottom:16px;animation:slideUp 0.5s ease 0.35s both}
+  .formula-section .ftitle{font-size:12px;color:#f9a825;font-weight:600;margin-bottom:10px;display:flex;align-items:center;gap:6px}
+  .formula-section .ftitle::before{content:"📐"}
+  .formula-line{font-size:12px;color:rgba(255,255,255,0.7);line-height:1.8;padding:3px 0;border-bottom:1px solid rgba(255,255,255,0.05)}
+  .formula-line:last-child{border-bottom:none}
+  .formula-line .fvar{color:#4caf50;font-weight:600}
+  .formula-line .fnum{color:#f9a825;font-weight:600}
+  .formula-note{font-size:11px;color:rgba(255,255,255,0.4);margin-top:8px;font-style:italic}
+
+  .results{display:none;animation:fadeIn 0.5s ease}
+  .results.show{display:block}
+  .big-number{text-align:center;padding:16px 0 8px;animation:scaleIn 0.6s ease 0.3s both}
+  .big-number .num{font-size:56px;font-weight:900;color:#f9a825;line-height:1}
+  .big-number .unit{font-size:15px;opacity:0.6;margin-top:4px}
+  .result-card{background:rgba(255,255,255,0.05);border-radius:16px;padding:18px;margin-bottom:10px;border:1px solid rgba(255,255,255,0.08);animation:slideUp 0.4s ease both}
+  .result-card:nth-child(2){animation-delay:0.15s}
+  .result-card:nth-child(3){animation-delay:0.25s}
+  .result-card:nth-child(4){animation-delay:0.35s}
+  .result-card:nth-child(5){animation-delay:0.45s}
+  .result-card .head{display:flex;align-items:center;gap:8px;margin-bottom:6px}
+  .result-card .icon{font-size:22px}
+  .result-card .label{font-size:13px;opacity:0.7}
+  .result-card .value{font-size:28px;font-weight:800}
+  .result-card .value .accent{color:#f9a825}
+  .result-card .note{font-size:11px;opacity:0.45;margin-top:4px}
+
+  .cta{text-align:center;margin-top:16px;animation:fadeIn 0.5s ease 0.5s both}
+  .cta .question-line{font-size:14px;margin-bottom:14px;opacity:0.85}
+  .cta button{background:linear-gradient(135deg,#1a7a4c,#2d9e6f);color:#fff;border:none;border-radius:30px;padding:14px 36px;font-size:15px;font-weight:700;cursor:pointer;transition:transform 0.2s,box-shadow 0.2s;font-family:inherit;width:100%;max-width:300px;box-shadow:0 4px 20px rgba(26,122,76,0.3)}
+  .cta button:hover{transform:scale(1.03);box-shadow:0 6px 28px rgba(26,122,76,0.4)}
+
+  .products-section{background:rgba(76,175,80,0.06);border:1px solid rgba(76,175,80,0.18);border-radius:14px;padding:18px;margin-top:16px;text-align:center;animation:fadeIn 0.5s ease 0.52s both}
+  .products-section .p-title{font-size:14px;font-weight:700;color:#4caf50;margin-bottom:12px}
+  .products-section .p-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;max-width:360px;margin:0 auto}
+  .products-section .p-item{
+    background:rgba(0,0,0,0.15);border-radius:12px;padding:12px 8px;text-align:center;
+    transition:all 0.2s;border:1px solid rgba(255,255,255,0.05)
+  }
+  .products-section .p-item:hover{background:rgba(76,175,80,0.08);border-color:rgba(76,175,80,0.2)}
+  .products-section .p-item .p-icon{font-size:26px;margin-bottom:4px;display:block}
+  .products-section .p-item .p-name{font-size:12px;font-weight:600;color:rgba(255,255,255,0.85);margin-bottom:2px}
+  .products-section .p-item .p-detail{font-size:10px;color:rgba(255,255,255,0.45);line-height:1.4}
+
+  .lead-form{background:rgba(255,255,255,0.04);border-radius:16px;padding:20px;margin-top:20px;border:1px solid rgba(255,255,255,0.08);animation:slideUp 0.5s ease 0.55s both}
+  .lead-form .lf-title{font-size:14px;font-weight:700;margin-bottom:14px;color:#f9a825;display:flex;align-items:center;gap:6px}
+  .lead-form .lf-title::before{content:"📝"}
+  .lf-row{margin-bottom:10px}
+  .lf-row label{display:block;font-size:12px;color:rgba(255,255,255,0.6);margin-bottom:4px}
+  .lf-row input,.lf-row select{
+    width:100%;background:rgba(0,0,0,0.25);border:1px solid rgba(255,255,255,0.12);border-radius:10px;
+    padding:10px 14px;font-size:14px;color:#fff;font-family:inherit;outline:none
+  }
+  .lf-row input:focus,.lf-row select:focus{border-color:#4caf50}
+  .lf-row input::placeholder{color:rgba(255,255,255,0.25);font-size:13px}
+  .lf-row select option{background:#1a3a2a;color:#fff}
+  .lf-submit{background:linear-gradient(135deg,#f9a825,#ffb74d);color:#1a1a2e;border:none;border-radius:30px;padding:12px 32px;font-size:14px;font-weight:700;cursor:pointer;transition:transform 0.2s;font-family:inherit;width:100%;margin-top:6px}
+  .lf-submit:hover{transform:scale(1.02)}
+  .lf-hint{font-size:11px;color:rgba(255,255,255,0.35);margin-top:8px;text-align:center}
+
+  .contact-card{background:rgba(26,122,76,0.12);border:1px solid rgba(26,122,76,0.25);border-radius:14px;padding:18px;margin-top:16px;text-align:center;animation:fadeIn 0.5s ease 0.6s both}
+  .contact-card .name{font-size:18px;font-weight:700;margin-bottom:4px}
+  .contact-card .title{font-size:13px;opacity:0.7;margin-bottom:10px}
+  .contact-card .detail{font-size:13px;line-height:1.8;opacity:0.8}
+  .contact-card .detail span{margin:0 6px;opacity:0.3}
+  .contact-card .badges{display:flex;justify-content:center;gap:8px;margin-top:10px;flex-wrap:wrap}
+  .contact-card .badge{display:inline-block;background:rgba(255,255,255,0.08);border-radius:12px;padding:3px 10px;font-size:11px;opacity:0.7}
+
+  .data-source{background:rgba(255,255,255,0.03);border-radius:12px;padding:14px;margin-top:16px;font-size:11px;line-height:1.7;opacity:0.5;animation:fadeIn 0.5s ease 0.7s both}
+  .data-source strong{color:#4caf50;opacity:0.8}
+  .data-source .disclaimer{color:#f9a825;margin-top:6px;font-weight:600}
+
+  .footer{text-align:center;margin-top:20px;font-size:11px;opacity:0.25;animation:fadeIn 0.5s ease 0.8s both}
+
+  .bg-bottles{position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:0;overflow:hidden}
+  .bg-bottle{position:absolute;font-size:20px;animation:float 7s infinite linear;opacity:0.06}
+  .bg-bottle:nth-child(1){left:10%;animation-delay:0s;font-size:22px}
+  .bg-bottle:nth-child(2){left:30%;animation-delay:2s;font-size:16px}
+  .bg-bottle:nth-child(3){left:55%;animation-delay:4s;font-size:20px}
+  .bg-bottle:nth-child(4){left:75%;animation-delay:1s;font-size:18px}
+  .bg-bottle:nth-child(5){left:90%;animation-delay:5s;font-size:20px}
+  .bg-bottle:nth-child(6){left:20%;animation-delay:3s;font-size:14px}
+
+  @keyframes fadeIn{from{opacity:0}to{opacity:1}}
+  @keyframes slideUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+  @keyframes scaleIn{from{opacity:0;transform:scale(0.8)}to{opacity:1;transform:scale(1)}}
+  @keyframes float{0%{transform:translateY(110vh) rotate(0deg)}100%{transform:translateY(-20px) rotate(360deg)}}
+
+  /* 闭环图动画 */
+  @keyframes pulse-ring{0%,100%{r:18;opacity:1}50%{r:21;opacity:0.7}}
+  @keyframes flow-dash{to{stroke-dashoffset:-24}}
+
+  .loop-node{cursor:pointer;transition:transform 0.2s}
+  .loop-node:hover{transform:scale(1.08)}
+  .loop-node-text{font-size:10px;fill:rgba(255,255,255,0.7);text-anchor:middle;pointer-events:none}
+  .loop-node-icon{font-size:22px;text-anchor:middle;pointer-events:none}
+
+  @media(max-width:400px){
+    .top .question{font-size:20px}
+    .big-number .num{font-size:44px}
+    .result-card .value{font-size:24px}
+    .products-section .p-grid{grid-template-columns:1fr 1fr}
+  }
+
+  .occ-row input.highlight{border-color:#f9a825;box-shadow:0 0 12px rgba(249,168,37,0.15)}
+</style>
+</head>
+<body>
+
+<div class="bg-bottles">
+  <div class="bg-bottle">🧴</div>
+  <div class="bg-bottle">♻️</div>
+  <div class="bg-bottle">🧴</div>
+  <div class="bg-bottle">♻️</div>
+  <div class="bg-bottle">🧴</div>
+  <div class="bg-bottle">🧴</div>
+</div>
+
+<div class="page" style="position:relative;z-index:1">
+
+  <!-- 顶部 -->
+  <div class="top">
+    <img class="logo-img" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAUgAAABCCAYAAAA1+E/hAAAACXBIWXMAAAsTAAALEwEAmpwYAAAdkElEQVR4nO2deXQcxbXwf7dnxvICXrAxxoZAIHwsYd+MWZQZyRh0MNKMiQh+geAEEkJCEgiB8JEQxVngJe+xJnwkvBcwYUcPayScOBgkDTJgNoNxEghLCDzABlvYZrEteTR9vz9mbEszVT092izj/p0z50hdVbeqZ7pvV1fdRehHtKqqjOGdJ6AaRTgM5WBgb8Dpo2gXeBPlZUSeAvdxunZ6RhYs2NDnQQcEBARYkL4K0Kqq0QzbeCbCmSAnAiP6YVx+6AR5BNV6hoUapf7RDwep34CAgB2EXitIra48FHEvR5jF4ClFG+uBPxLSm+TB1D+28VgCAgI+JZSsILWm8iDE/RkwqzftBxhFuYeM/FAWtLy7rQcTEBCwfeNbwWk0GmacXInyYyAygGPqDzagUkdjy7UCuq0HExAQsH3iS0HqrIq9cHU+cGQf+voIWAWsQmhH2QhsQqQTVxWHMpQyYDjKBEQmgk4ExvS+y30EN3SONDW/34dxBwQE7KAUVZAajx4O8mdg9xLEvga6OLfj/DJp/iELUu29GaAmKscj7gG4egAqUxHKgf1LEPEWoczJ8mDba73pPyAgYMfFU0HqrBoduLII2NmHrKUI9yD6gMxPvdM/w7OMq/rkyTiZM0FnA8f6aPI+mjlZGtv+OpDjCggI+HRhVZB6Rvl+ZEJPAhM8JSh/wnF+KQ3NS/p7cH7Q6ujRhLgSlTjeCv8d3PBUaXpkxWCNLSAgYPvGqFC0qmo0ZR1Lgc95tP0XIudLQ0vLwAytNDRROQ3XvQ3hAI9qSxmrJ8q8VMegDSwgIGC7xezhMrzzWrwUo8j/sCFyyFBRjgDS0LyEcXoEwu0e1Y5irfxs0AYVEBCwXVMwg9RE5cmou8ijyY0kWy4ZyuYzGo/WgfzUUpxBOUEaW58ezDEFBARsf/SYQWpdnYPqjR7175Rky8VDWTkCSDI1F7jTUhxC8DrHCQgICADyX7GXtZ0FepC5qs8yRCacPwhj6h+6R+wb6LIl2ZGlK8cSBAQMJ2xxYFqSAIP1jqpUHd86S+ftMgjKvPZMHCOv2GjA8cBM7jVfQAgICAAiC7TKC6MowGPWeqaF8p9/oVqPFoE8noik/eUp0Vrf+DuoeYY/r+fciAbMNbXwHnwxzu5zp/Aw3p7wNhoiwJPESog49I+NP2AjYPOI6+xnbbAqDLAwI2wLsw/Yq0AA6svGF8jdxGv/p8f5NvuBnYTkb3gSXoCc1I8wF5Qn92h+qC8T/fa5/0Icf8PaEGuNYUXd2ba0OAOB+jD1kE4YH/Q+I8ADzqlx7oPCuhsWVw37uBBJ5GdxnEvI5+Wg4cS9BbO/3tP7eCqoEetEVeEcoYlNVk+Ag/j7Y6oBw7isYbMkYIcYffA7nI+rUAK4p7HOf4Mlb0nRyhTB+MQvYKrQLkI1OOG9o3O+bTd9lthLhKf/HDYf1A1EmxnU/YAIoowH2xwQ4YBlFs6yB1zog3lL9mnL2QCQh7om6j4Hhgd3lUKP1A+Ruk5s2u3shXYXiE9B5oJLuSgsEevAhyQxPOr4cDh6H3eT6nOs82DDl+OBfDmuRfc3X+fg1wcJ5h41w8O4E9BAFJG0IFgODKZkmbqkPsFdktuZ7mDIb/Hrc/nPsQPhcQayODiiA15BXjviNM7QNs4jV8FNrD0sgjE1D2egL9I4z90cFPvLX/aDJ+yPC6r+Lgd8vsLrWc+tR3yEjvAxzgeuf/fzWDaXt7DHSMszqLUb0BSsBI+BSN1DBVhnsjM9OHj98DjefnLRo9izIXDDRkA5cC4s37RBOVUxzcb6M5sFiG2F/hjhbuBIfpPOcZcJz0PBTjS7lPUPrfOZCZeRnBmCG3kjzFsR1g5Atq7AGJrsKOfHnMqj+BLTPeA7wF24oZnglH1Oik5UOoX6WklwW0g3YTgHXAXDpxWkdvUATQ8RJpGsD88U2atIVi+l+6qCGdC3tqI+p8xHU75Y++LNUiQv/yPeSHhO5bAQXqDKGqyHeUZzXpXyQqS+fqBco2CswJ2nkW4G+TVsFcTOQF1DxLXnlWlO0YLmjf0STG+3/C6E04hvDgF3kjKWFtYB0rzoh2C0PXCIt8WQR+kQdRkj3sCiXP1lSWgO+H1hB2YfR+F9UCL9HZMoUVX/wGV7LWWq/hn/PiZIN0HnCCyPNiPufgI4TQBhjuBhgAeAv0L8kq0qKzYyn4TBYg/1PuSSMQH3hLCCqAMIOHW7wiK6FvgXsCTKIoh+Z3+tHRhlD4sldBFKvOE5SmW0BGoM3C3TbxVYJx03iEcYu+ZRWeuSjBmHaCiAtEv7dXRpG8SVRsX2zFxj/E92jmA0i6A+5L+fJcnkXkX5CBkC2kG5qsnwEVgjFs68fi1CcmVDQCG5WU3dU9BI0TbXABzF9IHK2AXrI4VcGN3FFbqF4b4N9PYgPsGQ4pgSei7iHhGD3vKj4eCO0doME4SRj3KPnSLpDUquk/iimUeWeqJ6W2FLlMT8CFFnIwhFp06+HPHlIEWBcH5g8hE/I16jO1f4TqbgXwL5IFRKLQBdOSPsPpWSTo2ODHxB0iyJDYXFWvJFbRTOF/HBRgWCFEZgX3Aeoe59cQ6Y8SMdbMJ0J//+KfCMduFcR1vAJdHofuNpLJKGLJApUu6iN4jhg5Fs+QngO0V7xTgFp/1nZ6HtEn7IGeVoA8TFKxGacQvEz5BV9AUe2CKpXpqIlJ1F2gm51vP8yI//DnQ7mOmDB7hJLG9N+MT8aRbF6APBi8I79/TdWlT+nC/s1F0e/X8P6D3wksk+jO1jUqY2wac4CH+8SL9P6sqsyJvnvDkj7C+Rx0i6KCs3iutM43mTURCCDxdJshY8z8tGnC/G6V0gE4uO69FgSSW0YIFGcQl7fC7AfwLNg/g6UPBCzNm4h+B+hswHIh0lojLvxpLEsiAV25ovOaE0LgJdF6Ut8AZvkdFyG4iFwwqITqQZ/P82T1MUXa4e6oTXGYRiZ4CjhaNQ6Q4BZ2s0b1KKqYJmmNNRghOmwvS3gW5jaI0/JGUmZRW06HPmARlEei/b5+IBTkHYCmR0/LYcAoNI/3/HySQBfifR9IMkOqhPMHbyo/4Jjv8Zej/MJeS3ozY/lyQsJ5XDPcnhM0gBLYDDGEJ++6v0ovUOCcAsoC5RChBrmBfK0e3k/7iX8+E5gYdTClgj9INY1LJYyCnEk4mcafAu6Q4i/EDJAGQ3oXW+CFIEzqswAFyCXw3QH+R7o/VMkDBDw++jLkMLIPJH2o/nPFqVgtjNQtSPNQga+GIV+U8mKDbGRPLZREUaIDgA2fKLY9iRshRkbY5Q2gQB5JcBGIyyWFj8Y3BfLQqDJE7IHoeJyC8NofYObJkQCcItRfhH0zCqtkAkx+H+i/SvGNs9BKYU9yT58K8UeJb5n5yL0RfJXogBwMqB+phEpk1uTFc4ib/7ENl/rMgqGijLqGdxYk9ZyhDdxQZ3FYn0YgCzCFrA6aTc4TE3pOAcfPBSBS9wzMvUZHAXcOf+W01PIkCJDQqOYowOcJQB47ibyqF6lybADkRj5wDrKQPF6Qf9d2rhJmBVNoRwFknxP6p1hLHKidEFkLpw8EAxcgxPyVGNQFbEt6IuAIqwEIn3hLyQUcENW5EIGO0f9BbkkC2Oebmw6q/WSiLmjEhBecKj0pXUJRXyM1VXBfLVnDlEH5c2gRpIWUc4YWR5IBCnLNOO8axHJ+TDAC7ACyBfQawAIgMJiwBokBnAfpdowJDymCuClH3wzZ5g8n3IPyfWkm4eghEqSMfop2AE6WlOW1tSfrFeIr0FoTsoHd/qBUdRoh4Z1I8bPHzIUo0aU1/BaJf8hnMeSDif6AD1IDBbtTEPyCcD3ZDIl2DB9CHM/Sj5wSrIXPJvl8X57ZMWMpk83pHPX/Pckp3o6fUkiGwAKhHmeLXxT4YY6Bdga/GFUQLIT8mcL5oLXQO/F8mVzOGIk+wD2bNDcOtwJH/Qgpm/HbLbfwyzB8gi6BBsyVwADMEQK0gTaTqZRhy1vISPe2mx7sx7d6V3x25rZ8i+lC3uQDOKSOEa4HaA+0hsz2QgUcRMhG5gYzm0JhYoSSU6B3FHJU87IJM+CRBUiA1SwY3osCGRkEUdGXTcETtHEnMeyJEXdRRrY/Gchv6x2q4x00HnRGQL0iAwMkvmQNoHZAyMABKgeSBmhVpAFgubkuL5A2E3uRCg3a1E1aQ9Cc6TwBJEHWL9IgVFI3kDyM4j0/QqAzyQHFYd2gVJ2JmAFoLQiSr+CwF3q5zNADJ6HswDxGxLhjL1u2GvhS6ggQ4mE5J4H9B6DBA1A6kIElkFBA4M6XvXIAYRkYXo0EpA3Z4Eua0m2D/YNBZ6AXsvUBZqdy1oyI1Yz8F1A/uS7XIFpDccMtx8h+7q0t4CohH6TwKqNUOckEUhPlbmG5DbSCxyWJkRxPn1LiKLqLNI5PsXUAvSC3nYKEQ4WVIbHRYuFqMSzK+Og1Sj/HQwR24QAiV7iwUkGYEdgDWOULJDHoAsIjMs5GB6eAn9e9LZHPEXlFwF5zPn/Exy9m4SC1OQFeR6zY+mRsSQPQlgACw5DgxxYJmyANIFGZAtEImQmG1pHoTWtHkE6QOjsj86UqDJIvbjyXuXFhSzjxSuvgR4FKjMkTkYQiFU4Tb6JMnlEooBBNg+kF+wUj5h1XDE1xf7EJ0r7MKPKW8W9Ld6wnl0Avx8yYZy8uaf1U+5MCm3KMLTtNJNJz6DPMHynMOYIKBdqlGHCXDB7MqfSMYYXGpYRdlykwTBVkG6NloLhEmn3UBmGUtJ5migwA+vLDDDriF3MgNqwRBskHnZclYbMDl/mshftTNsMOdipn+QTpBqJEvZ+Y5Qps1GZBkQBneNoIOgR21uSBzDAspOC3Fcv7YlcpBuSPaFDphPOHsL1e2DOYTkOmUE6ZetQO44XhLFSaMVqJ4d+QB1BrY2/5GA9lNVQ9iXZNR9HFl+WbhkGmIrQdabITn+9ZD0S5U9vYAPYI8ZhVj6/5E3+VuAVwC7Yj+dCbcI0UTs0HlAM+kHs3At5L8gRaQ6EA43RagQRhg6X3IM3mFBvuxKlMMYgzwtJJ5z0UZYSxasR5ltu1Rvq0TJIDmMtLMF7Ubc00q1F5Ii0Ys0B/cHQK1gDdIsHdIVZLSckPYRZI4OFS5GC9KJksEkk11Rwgnkzg1WDUX8XpDEhOYMsIxS8SYNDEZL0m+FNG2UsH4Qo0iAYGq9jJ08lCN1RzE2lK15BHdxU2ZBqk8v0WSY9i4AcilByiPB38YZNLcoyCsgxhQQHCjSqGZ7HLQNVqP4N0jVbA0YgMJMbnYJhG3o4AVsC6AplZAMaOVDQIBFKoCK5SGBu6SIs2E0cih4B7E9VXqHhdogcCvE8pJFPwRFFlvrYe7AIke+2U/uBYCSjCRG2CWCKZDgGMKQ9Jel7k56DIxNn+TiN4ZcQw4PFozloFrmZwPIUo0ixQ7YRJDswp/FNkyiMr5y3a3J7Z+R6UWtLJEhNC95tBfxHMIg6ejd5I8oFs3cRhgmMqZ1TMk5EFKPEuVoo9zMrl1tCeQQZnvqLrCIJdH1miMoSS2INM1RM48S4trU6E7DngZYP3I3Q05bZpBQYph4H8c5U1gA1HUgTikIgMQnpx0uIgSC9Fuxn5jkDaL2P0FsK6B+ldjk19NlQBE2U1ZErlsB8cEs7SACrL2o3wKqKesE0RRhDUCM0iay0tBBqHMT+RH4AVGY7ULe5skWXoXQKMgqxHSHyMjPgwIoU0LIHmy7Abw9SQu7a7IQRogp0myQVRBwkER0O+TPNk+UnDm4Bwj8CQyYI8lNOGEsue8/AJdK2kKKDvs5lPEZQVHQzh9AGxYpF7ESKhqM9lZwgkwh21q9WFGOIbUbc3Olu2hPDS22hRoE+AhR4nohyrP5GkEBSm+czNlrwGrGvMdeJ2EXQ8ifClrA7UajVYz81iDKAIjbkNPIQYo3vMn3wURTvQv+NQLxSXRfdbyF3IVeB6hHIBC7AM4A8gnWfDnBQ5aTJ2vHyHUS1CaQQuT3ZIVQ2UH3S/ST5yJSd7qCcQ0D5xQJJcj5EeINYBP5h4G27LrI4Q1o4jh0sErR6EA6Rrhsl1bLmBmcst7BMr8dHHpEtoL6bgyDyaCR0HjQBJCdBRwXUQ7QY7bbUz7/AwhW0L2G9E3XSFUXdgTSTcJdqAk3S7cCSr5P7H+cQF/roJEsg4x8sWbSo+x6Cv9YXCDqyEs8JCB2KoBcpDG1PA2V4nggBjmrWEG4sH/3R1iMwC3UAAUTYCPXAdRwCFMgHqYgiYZhnDXGBP4U4dGAEmXuKhs1bSaTzWkMa+GLyPXKBMJkVuwhIfe4pMkGZRtxkBSJGU3YpBssFEMl3iFxv4BVkGhTZWfRDI74NhLkdi9HsiMtO0b1oAy6y+DPK9/R8BuDCESBoW8gZSPwGJ6sNjPuyQI4gF8kHfVQXj0p7EigLdoFyIgyLvg9mThL/xQw4nvcMgLRNlIi5k3eRLQ5DW4NCoAC6u+xaMrj8WHDDk9XBiXKCT6azA/uyM+HjGOcBDSS8C+f9EJGPMTcm8E+YHL9Z6i/yCdJETIHM0XYugRiR3gj5sMcDlUBDdngDThYHnJDDssoU3kBG/F0W2uVfMK9IQi2bgX3F04LX6AHL88BANpHLgFjw+2DKY5b1JFuSX8BpAIYDDBB/oEkuP0JBtGFCIjq5bFNbHTY0R1K3go3gADuPgm4Vh0IGuIruoXkBmSRYtHluYkxEjLOOmLPMJS0qJJeH2M8i0pXRDgMMdC65e3LiBjPxKlj5WkblkHki15wCF7giJkl5+QICyESqRb2K0CjBuHq2Q0JsqPRU+w8XmpS0NAmP65Cv4hZkXg0UhlhdRQXRPRDYnX2S0z3TE3YiZfO3BYpC/1NArMUXZ6gVMkX2q0hGJAFF2YF5j3c5DNiFUMQxkP74DF6L5PcsOtkG5r2xHTgAakwYQmkFGQ4VB2A9SK8wwU0Ao5r05g7CNEHgHKEM83pCwhpOpm9e4QO4S+E+FwYFNuLpaZMFsSc87AzqR+BfYNehCHDvK0F8C6weYR2KLkO1AhJI2SPaIIp2EYkiHwD/p1mYt3S6E1iSBt0bYRY5JAYGkkAXJAII0jFP8sRYBA0uSHBHKwp0KkDccQc3U4u2C/0DLcBGhT9koEpYAClLBSq8q+CwA/oH0HhWSQkRnX6P5XpRa1fW5Q9svwH9E4BJ8h7Dni4d8O0jmocWKSdSPzJFFeCYOSLyXlIHicZCXECkU1xzkTRDeDCIJFpL9D+2KIBHoyqFs9k4rgaHpP0oIdohB2IN9mG5OGS92jAJoJbqO+DeQeWQ0sEtdhAW5DJGWRdUwTHkzQJp4AsgXQBzAnxBx9AtZBuThQZCdZNM4QKAf9N1kgqP4GIuhHFI/W6SGoaNpf8z9BTg0X2Z9k1BvlFoILr3UaORkGkjOSVUGEPKmgC8IQzQKSXh9JEfEkNuA+H0yYhvBpQCm6RFhSW+7gcZPiyA4j7EtvxG8eMhwGCOK3BgS/BEQGFIMgQ/SSDhO5O8hElQ7KH9l6Q6kBhImrDFWzHqQFZBH0Ai4S9Cx2lZBrRg5CB0iy7lDPkJEgHVkAu6V/C3oJkOEvWMyKxg7AfIg2SgQjoK/y+yi6O2GuhXQmk43gCaoQiEK7pShl2ThA8kE5QQcJdY8oIPUMRHFn6Zb3UwjU2cIiDaxOgeWChNoi3y1tIFKdBApRu2QekKX6DpHQnkBiS76xO0o+nbAVh6yJJBASZM6FGJKgYJIPDRCHOhLZ9GSjSRSg0+ivtLs2IbRhnPB3FqJqT6x83Jo0mqABXQPTUj+J6OQPgDeBTMHBS0FAAfJyG7cOQ3eTyD/8oOJA8UQAAZLTjRMxKKnoCmSbTHb4FQXjT1jkYKUpzWpX4F2ll6gETL7dYFMqIF7UMMvXpo8EINgRgY7Iil2tgSWJA9QLmLi8l9rPsFJa6kik6iyFKSU2GJozJQhCiuBMwBFGPAqL6FfR/JBjECW5YiirSUIBxBSNS0rCBZTbtpDsAynXEGNIKhMJYwHrIJGQS1z5m5d5kFTGOsEKR9sBFPdJpHuS8guJIpcZ0SCL9QxboSt9lENYCSMRjCvayV2NHn5YUHGJaYM01t84HhWRmsm4Bv8k+D2Q0Bsvu7B4U0BhVkH0nUbRySQhIYyCvKAxXBMK9I3LwKBybOVRZEW0UhWRI6SzPprl6G54FdjMhIQWwhBv3SII8Q3ib7R5B6SHZ4QEdAjA8mMY6RMpkwQwAIyxBLaTwKMYwJAMC2LgH2VHgEOmPkIANDC9GKKgPBISp6+QTVM0iAD8CvYJCBosEToiR9jlg/ipQa/MWAi1gNt2x2+BeHZ7EHCzQyAaDPHgHijrBeQBWnlS80TIpmwtwENsGwbI7BLRgagB6Ri3zZpOAJ6jZGRwgBh8S8oFOcN7ZLCXpNx+LdjL9kkHyUkMC/sJ9BxELjJUtJ4GhKwxEINhDDZZj6N8iTPltBq4/64FrOdsWtOSQ7r9F1KUGSlMnMAu0QAQIBxH8x/SsTAtRQeCMTdQgh8Lrm+sdJ/RFeAGL9wpSB8cQBLCf3f4wqxQjBGNGIISlAmBF6QemACOIclpQtw4Woj6yUynINyYOMBlItP46gCF+1x2zAHqFTCQkXURVhHkLlcwp1q+WATSCKBIWOfsDgnF1EXEvQK0XUE+tZyQk5EK4B15YfqR4e9Vh7nBUZ0HOkU2LsAdUnIEMYPGqEPCfSjPnlG8Lk7WnSbQFqLSDmPqBRwFCSfGS2RthOchWJG0idIQUJJxCRhEViKnILT8QFvAzp2Hnmg8tYQ4TILsPshEo40nZQvyQdR3KJI2JRBhJ4jMsMnwGDEhvxDGQFmRByUBks3FcCHqAqL1A1E9AFQIx1R2ZRdE8hHCFZ1dSlRBnw1F6QcqcTJLhchk0k8o4F0rI2Bnk9FHNHFXlnUNj5FMnu1qUFh0YhT1yN3n0bUBNKQTD3VHFfLN/SiUFJD5NwhLyV5ExzQkqUACoyiZ1cV2XetocUU/oLIS1JloRw2sCCNtsQo/egfZLcq+1ySfvIAjlMM3As7FGClmRd8mJQxAFTCMMuAxA9FNkLYiB5eNoh+C9AQSCbIvAIwnlQdPBUqkxSD/cQYhDHID+AX7KoIfQbTEmJjAJQNfhYgDucB7qo/rnUjksjsCXALkhiA+E7AlUpDaI2QJewqQKJjgFD4K/BnMmhKlu6A1A0UFaDxBdJsi5BdDz0aBUgrgUJT1aYK8m5K3IbY6fU1DkccZ4h2QQZTxC4WvOJLchxAuWCHJGYNvABY7gFJB9oQRhVsNIyS7IQRF2k5miMjDfpOXMJxgRYDSqoEAjOWSR4CCjgYF60CmuLJR2QSDc9AEAJB4q8iD5r8pIvBpHHUgEQfkLgBwBJ3UjJHkvIwSSY+gDmhPAjaYrAxCm8SuFygJyHkp+l/Z5gyYGDGt00oMqcGyS2YG8QsSIl2AxJelcOBg7BCJYV1oUnRBQySGAOZjaCazhOYZlwAcFk1JZpHkj2K8rYEwyHQQJ2R+XsIBjIPsDRPNOtBNlML4hGjIA7B/2XJFR9NEoQJAQgiKQpm2EMM0LkByZGWQe0U2JzCkSb/L8xFCFqQHMDIAAAAASUVORK5CYII=" alt="GOODCYCLE" onerror="this.style.display='none'">
+    <div class="question">酒店<span class="green">空瓶</span>回收计算器</div>
+    <div class="sub">输入房间数和入住率，看看这些瓶子能变成什么、能减多少碳</div>
+  </div>
+
+  <!-- 闭环图 -->
+  <div class="loop-section">
+    <div class="loop-title">♻️ 从瓶子到产品，一个完整闭环</div>
+    <div class="loop-svg-wrap">
+      <svg viewBox="0 0 400 340" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <filter id="glow"><feGaussianBlur stdDeviation="2" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+          <marker id="arrowhead" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+            <polygon points="0 0, 8 3, 0 6" fill="rgba(76,175,80,0.4)"/>
+          </marker>
+        </defs>
+
+        <!-- 环形背景 -->
+        <circle cx="200" cy="170" r="130" fill="none" stroke="rgba(76,175,80,0.08)" stroke-width="40" stroke-dasharray="8 4"/>
+
+        <!-- 弧形箭头 (top→right→bottom→left) -->
+        <path d="M 280 90 Q 330 170 280 250" fill="none" stroke="rgba(76,175,80,0.3)" stroke-width="2.5" marker-end="url(#arrowhead)" stroke-dasharray="6 3"/>
+        <path d="M 240 280 Q 200 330 160 280" fill="none" stroke="rgba(76,175,80,0.3)" stroke-width="2.5" marker-end="url(#arrowhead)" stroke-dasharray="6 3"/>
+        <path d="M 120 250 Q 70 170 120 90" fill="none" stroke="rgba(76,175,80,0.3)" stroke-width="2.5" marker-end="url(#arrowhead)" stroke-dasharray="6 3"/>
+        <path d="M 160 60 Q 200 20 240 60" fill="none" stroke="rgba(76,175,80,0.3)" stroke-width="2.5" marker-end="url(#arrowhead)" stroke-dasharray="6 3"/>
+
+        <!-- 节点1: 空瓶回收 (top) -->
+        <g transform="translate(260,60)" class="loop-node" onclick="document.getElementById('rooms').focus()">
+          <circle cx="0" cy="0" r="26" fill="rgba(76,175,80,0.12)" stroke="rgba(76,175,80,0.3)" stroke-width="1.5"/>
+          <text x="0" y="2" text-anchor="middle" font-size="22">🧴</text>
+        </g>
+        <text x="260" y="98" class="loop-node-text">空瓶回收</text>
+
+        <!-- 节点2: 再生加工 (right) -->
+        <g transform="translate(330,170)" class="loop-node" onclick="document.getElementById('rooms').focus()">
+          <circle cx="0" cy="0" r="26" fill="rgba(249,168,37,0.1)" stroke="rgba(249,168,37,0.3)" stroke-width="1.5"/>
+          <text x="0" y="2" text-anchor="middle" font-size="22">⚙️</text>
+        </g>
+        <text x="330" y="208" class="loop-node-text">再生加工</text>
+
+        <!-- 节点3: 减碳种树 (bottom) -->
+        <g transform="translate(200,280)" class="loop-node" onclick="document.getElementById('rooms').focus()">
+          <circle cx="0" cy="0" r="26" fill="rgba(76,175,80,0.12)" stroke="rgba(76,175,80,0.3)" stroke-width="1.5"/>
+          <text x="0" y="2" text-anchor="middle" font-size="22">🌲</text>
+        </g>
+        <text x="200" y="318" class="loop-node-text">减碳种树</text>
+
+        <!-- 节点4: 制成产品 (left) -->
+        <g transform="translate(70,170)" class="loop-node" onclick="document.getElementById('rooms').focus()">
+          <circle cx="0" cy="0" r="26" fill="rgba(76,175,80,0.15)" stroke="rgba(76,175,80,0.4)" stroke-width="2"/>
+          <text x="0" y="2" text-anchor="middle" font-size="22">🛏️</text>
+        </g>
+        <text x="70" y="208" class="loop-node-text">制成产品</text>
+
+        <!-- 中心：26个空瓶 = 1件浴袍 -->
+        <circle cx="200" cy="170" r="44" fill="rgba(249,168,37,0.08)" stroke="rgba(249,168,37,0.25)" stroke-width="1.5" stroke-dasharray="4 2"/>
+        <text x="200" y="158" text-anchor="middle" font-size="11" fill="rgba(255,255,255,0.6)">26个空瓶</text>
+        <text x="200" y="178" text-anchor="middle" font-size="14" fill="#f9a825" font-weight="900">= 1件浴袍</text>
+
+        <!-- 中心小箭头旋转暗示 -->
+        <g transform="translate(200,170)">
+          <circle cx="0" cy="-52" r="4" fill="rgba(76,175,80,0.5)" filter="url(#glow)">
+            <animateTransform attributeName="transform" type="rotate" from="0 0 0" to="360 0 0" dur="8s" repeatCount="indefinite"/>
+          </circle>
+        </g>
+
+        <!-- 标注文字 -->
+        <text x="165" y="30" text-anchor="middle" font-size="9" fill="rgba(255,255,255,0.3)">回收</text>
+        <text x="365" y="140" text-anchor="middle" font-size="9" fill="rgba(255,255,255,0.3)">粉碎造粒</text>
+        <text x="235" y="300" text-anchor="middle" font-size="9" fill="rgba(255,255,255,0.3)">减排固碳</text>
+        <text x="35" y="140" text-anchor="middle" font-size="9" fill="rgba(255,255,255,0.3)">纺织成品</text>
+      </svg>
+    </div>
+
+    <!-- 瓶子→浴袍 交互区 -->
+    <div class="transform-zone" id="transformZone" onclick="triggerTransform()">
+      <div class="tz-label">👆 点击这里，开始回收变装</div>
+      <div class="tz-display" id="tzDisplay">
+        <div class="tz-item">
+          <div class="tz-count">26</div>
+          <div class="tz-icon-text">个空瓶子</div>
+        </div>
+        <div class="tz-arrow" id="tzArrow">→</div>
+        <div class="tz-item" id="tzResult">
+          <div class="tz-count" style="color:#4caf50">1</div>
+          <div class="tz-icon-text">件浴袍</div>
+        </div>
+      </div>
+      <div class="tz-hint" id="tzHint">26个回收塑料瓶 = 1件100% rPET再生浴袍</div>
+    </div>
+  </div>
+
+  <!-- 输入区 -->
+  <div class="input-group">
+    <label>你的酒店有多少间房？</label>
+    <div class="input-row">
+      <input type="number" id="rooms" placeholder="比如 200" min="1" max="99999" oninput="calc()">
+      <span class="unit">间</span>
+    </div>
+    <div class="preset-btns">
+      <button class="preset-btn" onclick="setRooms(100)">100间</button>
+      <button class="preset-btn" onclick="setRooms(200)">200间</button>
+      <button class="preset-btn" onclick="setRooms(350)">350间</button>
+      <button class="preset-btn" onclick="setRooms(500)">500间</button>
+    </div>
+
+    <!-- 入住率选择器 -->
+    <div class="occ-section">
+      <label>📊 入住率（选择或手动输入）</label>
+      <div class="occ-row">
+        <input type="number" id="occupancy" placeholder="80" min="1" max="100" value="80" oninput="onOccCustom()" class="highlight">
+        <span class="unit">%</span>
+      </div>
+      <div class="occ-ref-group">
+        <button class="occ-ref-btn" onclick="setOcc(80)" data-val="80">80%</button>
+        <button class="occ-ref-btn" onclick="setOcc(100)" data-val="100">100%（满房）</button>
+      </div>
+      <div class="occ-ref-hint" id="occRefHint">入住率估算</div>
+    </div>
+  </div>
+
+  <!-- 计算公式 -->
+  <div class="formula-section">
+    <div class="ftitle">计算公式</div>
+    <div class="formula-line">年丢弃瓶数 = 房间数 × <span class="fnum">入住率</span> × <span class="fnum">2</span>个/天/房 × <span class="fnum">365</span>天</div>
+    <div class="formula-line">再生塑料重量(吨) = 年丢弃瓶数 × <span class="fnum">20</span>g/瓶 ÷ 1,000,000</div>
+    <div class="formula-line">碳减排(吨) = 再生塑料重量 × <span class="fnum">1.42</span> <span class="fvar">(EPA数据)</span></div>
+    <div class="formula-line">相当于种树 = 再生塑料重量 × <span class="fnum">23.5</span>棵 <span class="fvar">(EPA数据)</span></div>
+    <div class="formula-line">可做浴袍 = 年丢弃瓶数 ÷ <span class="fnum">26</span>个/件</div>
+    <div class="formula-note">* 以上参数为行业估算值。入住率可按酒店实际数据手动调整。</div>
+  </div>
+
+  <!-- 结果 -->
+  <div class="results" id="results">
+    <div class="big-number">
+      <div class="num" id="bigNum">0</div>
+      <div class="unit">个塑料瓶/年被丢弃</div>
+    </div>
+
+    <div class="result-card">
+      <div class="head"><span class="icon">🌫️</span><span class="label">回收这些瓶子，可减少碳排放</span></div>
+      <div class="value">约 <span class="accent" id="carbon">0</span> 吨 CO₂</div>
+      <div class="note">数据来源：美国EPA — 1吨rPET再生塑料减少1.42吨碳排放</div>
+    </div>
+
+    <div class="result-card">
+      <div class="head"><span class="icon">🌲</span><span class="label">相当于种植树木</span></div>
+      <div class="value"><span class="accent" id="trees">0</span> 棵（10年树龄）</div>
+      <div class="note">数据来源：美国EPA GHG当量计算器</div>
+    </div>
+
+    <div class="result-card">
+      <div class="head"><span class="icon">🛏️</span><span class="label">这些瓶子可以制成</span></div>
+      <div class="value"><span class="accent" id="robes">0</span> 件 rPET浴袍</div>
+      <div class="note">1件浴袍 = 26个回收瓶 | 100% rPET再生面料</div>
+    </div>
+
+    <div class="result-card">
+      <div class="head"><span class="icon">📋</span><span class="label">对ESG报告的价值</span></div>
+      <div class="value" style="font-size:15px;line-height:1.6">
+        每年回收 <span class="accent" id="bottles_display">0</span> 个塑料瓶的闭环数据<br>
+        可直接写入<span style="color:#4caf50">集团ESG报告</span> | GRS认证可追溯
+      </div>
+    </div>
+
+    <!-- CTA -->
+    <div class="cta">
+      <div class="question-line">想把这些瓶子变成你酒店的再生产品？</div>
+      <button onclick="document.getElementById('leadForm').scrollIntoView({behavior:'smooth'})">聊聊怎么做 →</button>
+    </div>
+  </div>
+
+  <!-- 可定制产品 -->
+  <div class="products-section">
+    <div class="p-title">♻️ 我们可以帮您定制哪些产品？</div>
+    <div class="p-grid">
+      <div class="p-item">
+        <span class="p-icon">🛏️</span>
+        <div class="p-name">再生布草</div>
+        <div class="p-detail">浴袍及各种纺织品</div>
+      </div>
+      <div class="p-item">
+        <span class="p-icon">👔</span>
+        <div class="p-name">再生制服</div>
+        <div class="p-detail">酒店员工全套制服</div>
+      </div>
+      <div class="p-item">
+        <span class="p-icon">
+          <svg width="26" height="26" viewBox="0 0 28 28" fill="none"><path d="M14 2C11.8 2 10 3.8 10 6H8c0-3.3 2.7-6 6-6s6 2.7 6 6h-2c0-2.2-1.8-4-4-4z" fill="rgba(255,255,255,0.7)"/><path d="M3 8l2-1 1 12v7h16v-7l1-12 2 1-1 13H4L3 8z" fill="rgba(255,255,255,0.7)"/><circle cx="8" cy="22" r="0.8" fill="rgba(255,255,255,0.5)"/><circle cx="20" cy="22" r="0.8" fill="rgba(255,255,255,0.5)"/></svg>
+        </span>
+        <div class="p-name">再生酒店塑料制品</div>
+        <div class="p-detail">衣架 / 收纳盒 / 托盘</div>
+      </div>
+      <div class="p-item">
+        <span class="p-icon">🎁</span>
+        <div class="p-name">再生礼品</div>
+        <div class="p-detail">帆布包 / 眼罩</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 线索收集表单 -->
+  <div class="lead-form" id="leadForm">
+    <div class="lf-title">留下联系方式，获取定制方案</div>
+    <form onsubmit="handleSubmit(event)">
+      <div class="lf-row">
+        <label>姓名 *</label>
+        <input type="text" id="lfName" placeholder="您的姓名" required>
+      </div>
+      <div class="lf-row">
+        <label>酒店名称 *</label>
+        <input type="text" id="lfHotel" placeholder="酒店/集团名称" required>
+      </div>
+      <div class="lf-row">
+        <label>职务</label>
+        <select id="lfRole">
+          <option value="">请选择职务</option>
+          <option value="gm">总经理/GM</option>
+          <option value="procurement">采购总监/经理</option>
+          <option value="rooms">房务总监</option>
+          <option value="brand">品牌/市场</option>
+          <option value="esg">ESG/可持续发展</option>
+          <option value="other">其他</option>
+        </select>
+      </div>
+      <div class="lf-row">
+        <label>联系电话 *</label>
+        <input type="tel" id="lfPhone" placeholder="手机号码" required>
+      </div>
+      <div class="lf-row">
+        <label>邮箱</label>
+        <input type="email" id="lfEmail" placeholder="工作邮箱（选填）">
+      </div>
+      <button type="submit" class="lf-submit">提交，获取定制方案</button>
+      <div class="lf-hint">提交后大盛会主动联系您，24小时内回复</div>
+    </form>
+  </div>
+
+  <!-- 联系信息 -->
+  <div class="contact-card">
+    <div class="name">盛艳艳</div>
+    <div class="title">GOODCYCLE 好润环保 · 酒店事业部</div>
+    <div class="detail">
+      📞 18545152255<span>|</span>✉️ summer.sheng@goodcycle.cn
+    </div>
+    <div class="badges">
+      <span class="badge">B-CORP认证</span>
+      <span class="badge">GRS认证</span>
+      <span class="badge">社会企业</span>
+    </div>
+  </div>
+
+  <!-- 数据来源 -->
+  <div class="data-source">
+    <strong>📊 数据来源说明</strong><br>
+    • 碳减排数据：美国环境保护局(EPA) RECON数据工具 & GHG Equivalencies Calculator温室气体当量计算器<br>
+    • 1吨rPET再生塑料可减少1.42吨碳排放，相当于种植23.5棵10年树龄树木<br>
+    • 浴袍瓶数：1件rPET浴袍 = 26个回收塑料瓶（GOODCYCLE好润环保产品实测数据）<br>
+    • 单瓶重量：按酒店常用饮用瓶约20g/个估算（行业平均值）<br>
+    • 每房每天瓶数：按2个/天/房估算（仅饮用瓶装水）<br>
+    • 入住率：按酒店实际入住率手动输入，80%为常见参考值<br><br>
+    <div class="disclaimer">⚠️ 以上数据均为估算值，仅供沟通参考使用。实际数据因酒店规模、入住率、品牌标准等因素存在差异。具体项目数据以GOODCYCLE好润环保出具的正式评估报告为准。</div>
+  </div>
+
+  <div class="footer">
+    GOODCYCLE 好润环保 | 让循环被感知 | © 2026
+  </div>
+
+</div>
+
+<script>
+  function setRooms(n){
+    document.getElementById('rooms').value=n;
+    calc();
+  }
+
+  function setOcc(val){
+    document.getElementById('occupancy').value = val;
+    document.getElementById('occupancy').classList.add('highlight');
+    document.getElementById('occRefHint').textContent = '入住率估算';
+    document.querySelectorAll('.occ-ref-btn').forEach(b=>b.classList.remove('active'));
+    const btn = document.querySelector(`.occ-ref-btn[data-val="${val}"]`);
+    if(btn) btn.classList.add('active');
+    calc();
+  }
+
+  function setOccCustom(){
+    document.getElementById('occupancy').focus();
+    document.getElementById('occupancy').select();
+    document.querySelectorAll('.occ-ref-btn').forEach(b=>b.classList.remove('active'));
+  }
+
+  function onOccCustom(){
+    const val = document.getElementById('occupancy').value;
+    if(val){
+      document.getElementById('occupancy').classList.add('highlight');
+      document.getElementById('occRefHint').textContent = '入住率估算';
+    }
+    document.querySelectorAll('.occ-ref-btn').forEach(b=>b.classList.remove('active'));
+    calc();
+  }
+
+  // 瓶子→浴袍 变装动画
+  let transformDone = false;
+  function triggerTransform(){
+    const zone = document.getElementById('transformZone');
+    const arrow = document.getElementById('tzArrow');
+    const hint = document.getElementById('tzHint');
+    const display = document.getElementById('tzDisplay');
+
+    if(transformDone){
+      // 重置
+      zone.classList.remove('transformed');
+      arrow.textContent = '→';
+      hint.textContent = '26个回收塑料瓶 = 1件100% rPET再生浴袍';
+      hint.style.color = '';
+      display.style.transform = 'scale(1)';
+      transformDone = false;
+      return;
+    }
+
+    // 变装动画
+    zone.classList.add('transformed');
+
+    // 箭头变等号
+    setTimeout(()=>{ arrow.textContent = '='; }, 200);
+
+    // 短暂缩放
+    setTimeout(()=>{ display.style.transform = 'scale(1.06)'; }, 150);
+    setTimeout(()=>{ display.style.transform = 'scale(0.96)'; }, 300);
+    setTimeout(()=>{ display.style.transform = 'scale(1)'; }, 450);
+
+    // 文字变化
+    setTimeout(()=>{
+      hint.textContent = '✨ 回收变装完成！26个空瓶变成了1件浴袍';
+      hint.style.color = '#4caf50';
+    }, 500);
+
+    transformDone = true;
+  }
+
+  function animateNum(el,target){
+    const start=parseInt(el.textContent.replace(/,/g,''))||0;
+    const diff=target-start;
+    if(diff===0)return;
+    const steps=25;
+    let i=0;
+    const timer=setInterval(()=>{
+      i++;
+      const val=Math.round(start+diff*(i/steps));
+      el.textContent=val.toLocaleString();
+      if(i>=steps){clearInterval(timer);el.textContent=target.toLocaleString()}
+    },18);
+  }
+
+  function calc(){
+    const rooms=parseInt(document.getElementById('rooms').value);
+    const occ=parseFloat(document.getElementById('occupancy').value);
+    const results=document.getElementById('results');
+
+    if(!rooms||rooms<1||!occ||occ<1||occ>100){results.classList.remove('show');return}
+    results.classList.add('show');
+
+    const occRate = occ / 100;
+    const bottlesPerRoomPerDay=2;
+    const bottleWeightG=20;
+    const bottlesPerBathrobe=26;
+    const co2PerTonPET=1.42;
+    const treesPerTonPET=23.5;
+
+    const bottlesPerYear=Math.round(rooms * occRate * bottlesPerRoomPerDay * 365);
+    const petTons=(bottlesPerYear*bottleWeightG)/1000000;
+    const robesPerYear=Math.floor(bottlesPerYear/bottlesPerBathrobe);
+    const carbonSaved=Math.round(petTons*co2PerTonPET*10)/10;
+    const treesEquivalent=Math.round(petTons*treesPerTonPET);
+
+    animateNum(document.getElementById('bigNum'),bottlesPerYear);
+    animateNum(document.getElementById('robes'),robesPerYear);
+    animateNum(document.getElementById('bottles_display'),bottlesPerYear);
+    animateNum(document.getElementById('trees'),treesEquivalent);
+
+    document.getElementById('carbon').textContent=carbonSaved.toLocaleString();
+
+    setTimeout(()=>{
+      document.getElementById('bigNum').scrollIntoView({behavior:'smooth',block:'start'});
+    },200);
+  }
+
+  function handleSubmit(e){
+    e.preventDefault();
+    const name=document.getElementById('lfName').value;
+    const hotel=document.getElementById('lfHotel').value;
+    const phone=document.getElementById('lfPhone').value;
+    const email=document.getElementById('lfEmail').value;
+    const role=document.getElementById('lfRole').value;
+
+    const info=`【好润酒店线索】\n姓名：${name}\n酒店：${hotel}\n职务：${role||'未选'}\n电话：${phone}\n邮箱：${email||'未填'}\n时间：${new Date().toLocaleString()}`;
+
+    navigator.clipboard.writeText(info).then(()=>{
+      alert('已复制线索信息到剪贴板！请粘贴到微信或备忘录保存。\n\n' + info);
+    }).catch(()=>{
+      alert('提交成功！请截图保存以下信息：\n\n' + info);
+    });
+  }
+
+  window.addEventListener('load',()=>{
+    setTimeout(()=>document.getElementById('rooms').focus(),600);
+  });
+</script>
+
+</body>
 </html>
