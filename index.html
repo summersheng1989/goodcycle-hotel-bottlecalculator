@@ -48,8 +48,10 @@
     font-size:11px;color:rgba(255,255,255,0.35);margin-top:8px;
     transition:all 0.3s
   }
-  .transform-zone.transformed{background:rgba(76,175,80,0.08);border-color:rgba(76,175,80,0.35)}
-  .transform-zone.transformed .tz-hint{color:rgba(76,175,80,0.7)}
+  .transform-zone.transformed{background:rgba(76,175,80,0.12);border-color:rgba(76,175,80,0.5);box-shadow:0 0 20px rgba(76,175,80,0.15)}
+  .transform-zone.transformed .tz-hint{color:#4caf50;font-weight:600}
+  .transform-zone.transformed .tz-arrow{opacity:1;color:#4caf50;font-weight:900}
+  .transform-zone .tz-arrow{transition:all 0.3s ease}
 
   /* 瓶子图标堆叠动画 */
   .bottle-stack{display:flex;flex-wrap:wrap;justify-content:center;gap:2px;max-width:120px}
@@ -257,7 +259,7 @@
         <!-- 节点1: 空瓶回收 (top) -->
         <g transform="translate(260,60)" class="loop-node" onclick="document.getElementById('rooms').focus()">
           <circle cx="0" cy="0" r="26" fill="rgba(76,175,80,0.12)" stroke="rgba(76,175,80,0.3)" stroke-width="1.5"/>
-          <text x="0" y="2" text-anchor="middle" font-size="22">🧴</text>
+          <text x="0" y="2" text-anchor="middle" font-size="22">🥤</text>
         </g>
         <text x="260" y="98" class="loop-node-text">空瓶回收</text>
 
@@ -416,7 +418,15 @@
       </div>
       <div class="p-item">
         <span class="p-icon">
-          <svg width="26" height="26" viewBox="0 0 28 28" fill="none"><path d="M14 2C11.8 2 10 3.8 10 6H8c0-3.3 2.7-6 6-6s6 2.7 6 6h-2c0-2.2-1.8-4-4-4z" fill="rgba(255,255,255,0.7)"/><path d="M3 8l2-1 1 12v7h16v-7l1-12 2 1-1 13H4L3 8z" fill="rgba(255,255,255,0.7)"/><circle cx="8" cy="22" r="0.8" fill="rgba(255,255,255,0.5)"/><circle cx="20" cy="22" r="0.8" fill="rgba(255,255,255,0.5)"/></svg>
+          <svg width="26" height="26" viewBox="0 0 32 32" fill="none">
+            <path d="M16 2C13.8 2 12 3.8 12 6" stroke="rgba(255,255,255,0.7)" stroke-width="2" fill="none" stroke-linecap="round"/>
+            <path d="M12 6C12 4 13.5 3 15 3" stroke="rgba(255,255,255,0.7)" stroke-width="2" fill="none" stroke-linecap="round"/>
+            <path d="M6 14L16 8L26 14" stroke="rgba(255,255,255,0.7)" stroke-width="2.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M6 14V28" stroke="rgba(255,255,255,0.7)" stroke-width="2.2" fill="none" stroke-linecap="round"/>
+            <path d="M26 14V28" stroke="rgba(255,255,255,0.7)" stroke-width="2.2" fill="none" stroke-linecap="round"/>
+            <path d="M6 28H26" stroke="rgba(255,255,255,0.7)" stroke-width="2.2" fill="none" stroke-linecap="round"/>
+            <path d="M10 20H22" stroke="rgba(255,255,255,0.5)" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+          </svg>
         </span>
         <div class="p-name">再生酒店塑料制品</div>
         <div class="p-detail">衣架 / 收纳盒 / 托盘</div>
@@ -424,7 +434,7 @@
       <div class="p-item">
         <span class="p-icon">🎁</span>
         <div class="p-name">再生礼品</div>
-        <div class="p-detail">帆布包 / 眼罩</div>
+        <div class="p-detail">收纳包/帆布袋/眼罩等</div>
       </div>
     </div>
   </div>
@@ -532,38 +542,45 @@
 
   // 瓶子→浴袍 变装动画
   let transformDone = false;
+  let transformAnimating = false;
   function triggerTransform(){
+    if(transformAnimating) return;
     const zone = document.getElementById('transformZone');
     const arrow = document.getElementById('tzArrow');
     const hint = document.getElementById('tzHint');
     const display = document.getElementById('tzDisplay');
+    const label = zone.querySelector('.tz-label');
 
     if(transformDone){
-      // 重置
+      transformAnimating = true;
       zone.classList.remove('transformed');
       arrow.textContent = '→';
       hint.textContent = '26个回收塑料瓶 = 1件100% rPET再生浴袍';
       hint.style.color = '';
       display.style.transform = 'scale(1)';
+      if(label) label.textContent = '👆 点击这里，开始回收变装';
+      setTimeout(()=>{ transformAnimating = false; }, 350);
       transformDone = false;
       return;
     }
 
-    // 变装动画
+    transformAnimating = true;
     zone.classList.add('transformed');
+    if(label) label.textContent = '👇 再次点击，重置变装';
 
     // 箭头变等号
     setTimeout(()=>{ arrow.textContent = '='; }, 200);
 
-    // 短暂缩放
-    setTimeout(()=>{ display.style.transform = 'scale(1.06)'; }, 150);
-    setTimeout(()=>{ display.style.transform = 'scale(0.96)'; }, 300);
-    setTimeout(()=>{ display.style.transform = 'scale(1)'; }, 450);
+    // 短暂缩放弹跳
+    setTimeout(()=>{ display.style.transform = 'scale(1.08)'; }, 150);
+    setTimeout(()=>{ display.style.transform = 'scale(0.94)'; }, 320);
+    setTimeout(()=>{ display.style.transform = 'scale(1)'; }, 480);
 
     // 文字变化
     setTimeout(()=>{
       hint.textContent = '✨ 回收变装完成！26个空瓶变成了1件浴袍';
       hint.style.color = '#4caf50';
+      transformAnimating = false;
     }, 500);
 
     transformDone = true;
